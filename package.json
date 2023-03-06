@@ -4,9 +4,8 @@
   "description": "",
   "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "tsc && cd dist && node dist/index.js",
-    "build": "cd dist && pkg -t node18-win-x64 index.js -b --public-packages \"*\""
+    "start": "cd dist && node dist/index.js",
+    "build": "tsc"
   },
   "author": "",
   "license": "ISC",
