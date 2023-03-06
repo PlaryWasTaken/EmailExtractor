@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@devmehq/email-validator-js": "^1.0.14",
     "@types/cli-progress": "^3.11.0",
     "@types/gauge": "^5.0.0",
     "@types/terminal-kit": "^2.5.1",
