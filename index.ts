@@ -18,7 +18,7 @@ const Chalk = new chalk.Instance({level: 3});
 const multiBar = new cliProgress.MultiBar({
     barsize: 80,
     format: '{name} | ' + chalk.hex('#ffffff')('{bar}') + ` | ${chalk.hex('#aa00ff')('{percentage}%')} | {value}/{total}`,
-    forceRedraw: false,
+    forceRedraw: true,
     hideCursor: true,
     fps: 20
 })
@@ -42,8 +42,9 @@ const validEmails:string[] = []
 const invalidEmails:string[] = []
 let totalEmailsChecked = 0
 function getSubfolders(path: string, filePath: string, mainProgress: cliProgress.SingleBar, bars: Map<string, cliProgress.SingleBar>, allPaths: string[]) {
-    const worker = new Worker('./worker.js', {workerData: {domains: domains, path: path, filePath: filePath}});
+    const worker = new Worker('./worker.js', {workerData: {domains: domains, path: path, filePath: filePath}, stderr: true});
     activeWorkers.push(worker);
+    bars.get('threads')?.update(activeWorkers.length);
     worker.on('message', (data) => {
         if (data.msg) {
             // console.log(data.msg);
@@ -63,7 +64,6 @@ function getSubfolders(path: string, filePath: string, mainProgress: cliProgress
             queue.push(data);
         }
         if (data.finished) {
-            console.clear()
             pathsCompleted.add(data.currentPath)
             const a = pathsCompleted.size / allPaths.length * 100
             mainProgress.update(Math.floor(a))
@@ -73,7 +73,7 @@ function getSubfolders(path: string, filePath: string, mainProgress: cliProgress
                 multiBar.remove(b);
             }
             activeWorkers.splice(activeWorkers.indexOf(worker), 1);
-
+            bars.get('threads')?.update(activeWorkers.length);
             validEmails.push(...data.validEmails)
             invalidEmails.push(...data.invalidEmails)
 
@@ -87,10 +87,9 @@ function getSubfolders(path: string, filePath: string, mainProgress: cliProgress
             }
             if (queue.length === 0 && activeWorkers.length === 0) {
                 mainProgress.stop()
-                const domainNames = Array.from(domains.keys());
-                fs.writeFileSync('domains.txt', domainNames.join('\n'));
-
-                fs.writeFileSync('emails.txt', validEmails.join('\n'));
+                multiBar.stop()
+                fs.writeFileSync('domains.txt', [...domains.keys()].join('\n'));
+                fs.writeFileSync('emails.txt', [...new Set(validEmails)].join('\n'));
                 terminal.clear();
                 ended = true;
                 console.log(chalk.green(`Processo finalizado!`) +
@@ -116,6 +115,7 @@ function getSubfolders(path: string, filePath: string, mainProgress: cliProgress
 }
 
 let ended = false;
+let started = false;
 terminal('Escolha um arquivo PST: ');
 terminal.fileInput({baseDir: '../'}, (error, path) => {
     if (error) {
@@ -136,8 +136,8 @@ terminal.fileInput({baseDir: '../'}, (error, path) => {
             if (ended) {
                 process.exit(0);
             }
-            if (name === 'ENTER' && !ended) {
-                terminal.grabInput(false);
+            if (name === 'ENTER' && !ended && !started) {
+                started = true;
                 const file = new PSTFile(path);
                 const mainFolder = file.getRootFolder();
                 const allPaths = recurseThroughFolders(mainFolder, '')
@@ -146,6 +146,7 @@ terminal.fileInput({baseDir: '../'}, (error, path) => {
                     color: chalk.blue('')
                 })
                 const bars = new Map<string, cliProgress.SingleBar>();
+                bars.set('threads', multiBar.create(threadCount, 0, {name: 'Threads Ativos'}))
                 getSubfolders(startingData.path, path, mainProgress, bars, allPaths);
                 terminal.hideCursor(false);
             }
@@ -153,7 +154,7 @@ terminal.fileInput({baseDir: '../'}, (error, path) => {
                 terminal.grabInput(false);
                 process.exit(0);
             }
-            if (name === 'CTRL_Q') {
+            if (name === 'CTRL_Q' && !ended && !started) {
                 terminal.clear();
                 terminal('Digite a quantidade de threads: ');
                 terminal.grabInput(false);
