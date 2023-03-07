@@ -146,7 +146,7 @@ terminal.fileInput({baseDir: '../'}, (error, path) => {
                     color: chalk.blue('')
                 })
                 const bars = new Map<string, cliProgress.SingleBar>();
-                bars.set('threads', multiBar.create(threadCount, 0, {name: 'Threads Ativos'}))
+                bars.set('threads', multiBar.create(threadCount, 0, {name: chalk.blue('Threads Ativos')}))
                 getSubfolders(startingData.path, path, mainProgress, bars, allPaths);
                 terminal.hideCursor(false);
             }
